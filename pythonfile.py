@@ -42,13 +42,10 @@ dataset=replace_cat_feature(dataset,features_nan)
 
 #view all the categorical features having missing values
 numerical_with_nan=[feature for feature in dataset.columns if dataset[feature].isnull().sum()>1 and dataset[feature].dtypes!='O']
-
-
 ## Replacing the numerical Missing Values
 for feature in numerical_with_nan:
     ## We will replace by using median since there are outliers
     median_value=dataset[feature].median()
-    
     ## create a new feature to capture nan values
     dataset[feature+'NaN']=np.where(dataset[feature].isnull(),1,0) 
     dataset[feature].fillna(median_value,inplace=True)
@@ -56,17 +53,17 @@ for feature in numerical_with_nan:
 ## Temporal Variables (Date Time Variables)
 ## It is more important to learn how many year since the House was sold, so we convert from year stamp to mention how many year 
 ## by simply subtracting these dated with YearSold
-
 for feature in ['YearBuilt','YearRemodAdd','GarageYrBlt']:      
     dataset[feature]=dataset['YrSold']-dataset[feature]
 
+#Numerical Variables
+#Since the numerical variables are skewed we will perform log normal distribution    
 num_features=['LotFrontage', 'LotArea', '1stFlrSF', 'GrLivArea', 'SalePrice']
-
 for feature in num_features:
     dataset[feature]=np.log(dataset[feature])
 
 
-##remove categorical variables that are present less than 1% of the observations
+##remove rare categorical variables that are present less than 1% of the observations
 for feature in categorical_features:
     temp=dataset.groupby(feature)['SalePrice'].count()/len(dataset)
     temp_df=temp[temp>0.01].index
@@ -79,29 +76,27 @@ for feature in categorical_features:
 
 
 ##Feature Scaling
-
 scaling_feature=[feature for feature in dataset.columns if feature not in ['Id','SalePerice'] ]
 feature_scale=[feature for feature in dataset.columns if feature not in ['Id','SalePrice']]
-
-
 scaler=MinMaxScaler()
 scaler.fit(dataset[feature_scale])
 
 scaler.transform(dataset[feature_scale])
 
+
 # transform the train and test dataset into normalised form, and add on the Id and SalePrice variables
 data = pd.concat([dataset[['Id', 'SalePrice']].reset_index(drop=True),
                     pd.DataFrame(scaler.transform(dataset[feature_scale]), columns=feature_scale)],
                     axis=1)
-
 data.to_csv('/Users/suravi.mandal/X_train.csv',index=False)
+
 
 # to visualise al the columns in the dataframe
 pd.pandas.set_option('display.max_columns', None)
 
 
 transformed_dataset=data
-transformed_dataset.head()
+
 
 ## Capture the dependent feature in y_train dataset
 y_train=transformed_dataset[['Id','SalePrice']]
@@ -110,23 +105,27 @@ y_train=transformed_dataset[['Id','SalePrice']]
 ## drop dependent feature from X_train dataset
 X_train=transformed_dataset.drop(['SalePrice'],axis=1)
 
-## for feature slection
-# to visualise al the columns in the dataframe
-pd.pandas.set_option('display.max_columns', None)
-dataset=pd.read_csv('X_train.csv')
+#print(X_train.shape, y_train.shape)
 
 
-feature_sel_model = SelectFromModel(Lasso(alpha=0.005, random_state=0)) # remember the random state in this function  to be used in the other file
+
+
+feature_sel_model = SelectFromModel(Lasso(alpha=0.005, random_state=0)) # remember to set the seed, the random state in this function
 feature_sel_model.fit(X_train, y_train)
 
 feature_sel_model.get_support()
 
 # make a list of the selected features
 selected_feat = X_train.columns[(feature_sel_model.get_support())]
-X_train=X_train[selected_feat]
-selected = pd.merge(X_train, y_train)
-print('total number of selected features',selected.shape)
+#print('total features: {}'.format((X_train.shape[1])))
+#print('selected features: {}'.format(len(selected_feat)))
 
+X_train=X_train[selected_feat]
+X_train.to_csv('/Users/suravi.mandal/X_train.csv',index=False)
+y_train.to_csv('/Users/suravi.mandal/y_train.csv',index=False)
+
+selected = pd.merge(X_train, y_train)
+#print('total number of  features in the file named selected',selected.shape)
 selected.to_csv('/Users/suravi.mandal/selected.csv',index=False)
 
 
